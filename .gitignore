@@ -1,0 +1,62 @@
+# --- Laravel / PHP ---
+/.phpunit.cache
+/bootstrap/ssr
+/vendor
+.phpactor.json
+.phpunit.result.cache
+.php-cs-fixer.cache
+auth.json
+
+# Entorno y secretos (el despliegue usa variables del host / .env no versionado)
+.env
+.env.backup
+.env.production
+.env.*.local
+*.pem
+
+# --- Node / frontend ---
+/node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.eslintcache
+*.tsbuildinfo
+
+# Vite: salida de build y flag de dev
+/public/build
+/public/hot
+
+# h5p-standalone se copia desde node_modules en postinstall (`npm ci` / `npm install`)
+/public/vendor/h5p-standalone
+
+# Laravel Wayfinder: rutas y acciones TypeScript generadas (regenerar con `php artisan wayfinder:generate`)
+/resources/js/actions
+/resources/js/routes
+/resources/js/wayfinder
+
+# Enlace simbólico a storage público (crear en servidor con `php artisan storage:link`)
+/public/storage
+
+# Pail / herramientas Laravel
+/storage/pail
+/storage/*.key
+
+# Previews H5P extraídos y subidas (datos de runtime; no forman parte del código)
+/storage/app/h5p
+
+# --- IDEs y SO ---
+.DS_Store
+Thumbs.db
+Homestead.json
+Homestead.yaml
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+
+# --- Calidad / CI local ---
+/coverage
+coverage.xml
+clover.xml
