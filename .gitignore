@@ -45,6 +45,10 @@ pnpm-debug.log*
 # Previews H5P extraídos y subidas (datos de runtime; no forman parte del código)
 /storage/app/h5p
 
+# --- Infra local / despliegue externo (solicitado) ---
+/ContenedorPrevencionDelitoPreviewH5P
+/deploy
+
 # --- IDEs, Cursor y CI local (no versionar) ---
 /.cursor
 /.github
