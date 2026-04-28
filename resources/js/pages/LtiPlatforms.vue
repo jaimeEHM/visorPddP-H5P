@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { home } from '@/routes';
+import { logout } from '@/routes/lti';
+import { store as loginStore } from '@/routes/lti/login';
+import { destroy as destroyLrsConnection, store as storeLrsConnection, test as testLrsConnectionRoute } from '@/routes/lti/lrs';
+import { destroy as destroyPlatform, store as storePlatform, syncJwks as syncJwksPlatform } from '@/routes/lti/platforms';
 import { computed, ref, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 
@@ -113,7 +117,7 @@ watch(isLrsSegmentEnabled, (enabled) => {
 });
 
 function submitCreate(): void {
-    createForm.post('/lti/plataformas', {
+    createForm.post(storePlatform.url(), {
         preserveScroll: true,
         onSuccess: () => createForm.reset(),
     });
@@ -128,14 +132,14 @@ function selectSegment(segment: 'lti' | 'lrs'): void {
 }
 
 function submitAccess(): void {
-    accessForm.post('/lti/login', {
+    accessForm.post(loginStore.url(), {
         preserveScroll: true,
         onFinish: () => accessForm.reset('password'),
     });
 }
 
 function logoutAccess(): void {
-    router.post('/lti/logout', {}, { preserveScroll: true });
+    router.post(logout.url(), {}, { preserveScroll: true });
 }
 
 function removePlatform(platform: Platform): void {
@@ -143,17 +147,17 @@ function removePlatform(platform: Platform): void {
         return;
     }
 
-    router.delete(`/lti/plataformas/${platform.id}`, {
+    router.delete(destroyPlatform.url({ platform: platform.id }), {
         preserveScroll: true,
     });
 }
 
 function syncJwks(platform: Platform): void {
-    router.post(`/lti/plataformas/${platform.id}/sync-jwks`, {}, { preserveScroll: true });
+    router.post(syncJwksPlatform.url({ platform: platform.id }), {}, { preserveScroll: true });
 }
 
 function submitLrsCreate(): void {
-    lrsCreateForm.post('/lti/lrs/connections', {
+    lrsCreateForm.post(storeLrsConnection.url(), {
         preserveScroll: true,
         onSuccess: () => {
             lrsCreateForm.reset('name', 'endpoint_url', 'basic_username', 'basic_password');
@@ -167,13 +171,13 @@ function removeLrsConnection(connection: LrsConnection): void {
         return;
     }
 
-    router.delete(`/lti/lrs/connections/${connection.id}`, {
+    router.delete(destroyLrsConnection.url({ connection: connection.id }), {
         preserveScroll: true,
     });
 }
 
 function testLrsConnection(connection: LrsConnection): void {
-    router.post(`/lti/lrs/connections/${connection.id}/test`, {}, { preserveScroll: true });
+    router.post(testLrsConnectionRoute.url({ connection: connection.id }), {}, { preserveScroll: true });
 }
 </script>
 
