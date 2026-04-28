@@ -4,7 +4,7 @@ Aplicacion web para visualizar contenidos H5P, integrarlos en LMS mediante LTI 1
 
 ## Documentacion adicional
 
-- Despliegue en subdirectorio/alias (distinto de `/`): `docs/ALIAS_DEPLOYMENT.md`
+- Despliegue en subdirectorio/alias (distinto de `/`): [`docs/ALIAS_DEPLOYMENT.md`](docs/ALIAS_DEPLOYMENT.md)
 
 ## Objetivo
 
