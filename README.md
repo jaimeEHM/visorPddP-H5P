@@ -18,6 +18,7 @@ Centralizar la previsualizacion/ejecucion de paquetes H5P y su trazabilidad de a
 - Flujo OIDC de autorizacion hacia el LMS.
 - Administracion de plataformas LTI (issuer, client_id, JWKS, endpoints).
 - Gestion de conexiones LRS por plataforma (endpoint, credenciales, version xAPI).
+- Vista de integraciones segmentada por tabs (`LTI` / `LRS`) en `/lti/plataformas`.
 - Forward de statements xAPI: `POST /xapi/statements/forward`.
 - Acceso protegido por contrasena para `/lti/plataformas` y acciones de administracion.
 
@@ -74,8 +75,8 @@ sequenceDiagram
 | `app/Http/Controllers/LtiPlatformController.php` | CRUD de plataformas + LRS |
 | `app/Http/Controllers/XapiStatementForwardController.php` | Normalizacion y envio xAPI al LRS |
 | `resources/js/pages/Welcome.vue` | Visor H5P y captura de eventos xAPI |
-| `resources/js/pages/LtiPlatforms.vue` | UI de administracion LTI/LRS con acceso protegido |
-| `deploy/cfrd-stack/` | Archivos de despliegue para stack CFRD |
+| `resources/js/pages/LtiPlatforms.vue` | UI de integraciones con acceso por clave y segmentos LTI/LRS |
+| `ContenedorPrevencionDelitoPreviewH5P/` y `deploy/` | Directorios de despliegue local (actualmente excluidos del repo remoto) |
 
 ## Requisitos
 
@@ -94,6 +95,20 @@ php artisan migrate
 npm install
 php artisan wayfinder:generate
 npm run dev
+```
+
+Build de producción:
+
+```bash
+npm run build
+```
+
+Si aparece error de `rolldown` por bindings opcionales (entornos Docker Linux ARM64), ejecutar:
+
+```bash
+npm install --include=optional
+npm install --save-optional @rolldown/binding-linux-arm64-gnu@latest
+npm run build
 ```
 
 ## Variables de entorno clave
@@ -118,7 +133,7 @@ php artisan test --compact tests/Feature/Lti
 - Host publico esperado: `pddp.cfrd.cl`.
 - Red externa del stack: `microservicios_service_net` (o `CFRD_STACK_NETWORK`).
 - Publicacion via Traefik (sin exponer puertos directos de app).
-- Referencia de compose: `deploy/cfrd-stack/docker-compose.yml`.
+- Nota: en este repositorio los directorios `deploy/` y `ContenedorPrevencionDelitoPreviewH5P/` estan en `.gitignore`; usa tu copia local para despliegue.
 
 ## Licencia
 
