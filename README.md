@@ -1,143 +1,125 @@
-# Visor H5P · LTI · LRS (PDDP)
+# Visor H5P · LTI · LRS
 
-Aplicación web para **visualizar paquetes H5P**, integrarlas en **LMS mediante LTI 1.3 (OIDC)** y **reenviar trazas xAPI** a un **LRS** configurable por plataforma. Pensada para operar detrás de **Traefik** en un stack con **PostgreSQL** y **Redis**.
+Aplicacion web para visualizar contenidos H5P, integrarlos en LMS mediante LTI 1.3 (OIDC) y reenviar eventos xAPI a un LRS configurable. El proyecto esta pensado para operacion institucional en CFRD, detras de Traefik, con PostgreSQL y Redis.
 
-## Contexto
+## Objetivo
 
-El proyecto sirve como herramienta tipo “tool” LTI: el usuario lanza la actividad desde un LMS (p. ej. Moodle o Canvas), la sesión LTI queda establecida en el servidor y el cliente carga el contenido H5P con **h5p-standalone**. Las interacciones que emiten statements xAPI se capturan en el navegador y se envían al backend, que las normaliza (incluyendo contexto LTI en extensiones) y las reenvía al LRS asociado a la plataforma.
+Centralizar la previsualizacion/ejecucion de paquetes H5P y su trazabilidad de aprendizaje (xAPI), permitiendo:
 
-## Stack tecnológico
+- consumo desde Moodle/Canvas via LTI 1.3,
+- administracion de plataformas LMS y conexiones LRS,
+- reenvio robusto de statements xAPI enriquecidos con contexto LTI.
 
-| Capa | Tecnología |
+## Funcionalidades
+
+- Subida y previsualizacion de archivos `.h5p`.
+- Servido de assets H5P con URL protegida por token.
+- Endpoints LTI 1.3 (JWKS, login initiation, launch) desde paquete local `cfrd/lti`.
+- Flujo OIDC de autorizacion hacia el LMS.
+- Administracion de plataformas LTI (issuer, client_id, JWKS, endpoints).
+- Gestion de conexiones LRS por plataforma (endpoint, credenciales, version xAPI).
+- Forward de statements xAPI: `POST /xapi/statements/forward`.
+- Acceso protegido por contrasena para `/lti/plataformas` y acciones de administracion.
+
+## Stack tecnologico
+
+| Capa | Tecnologia |
 |------|------------|
-| Backend | PHP 8.4, **Laravel 13** |
-| Frontend | **Vue 3**, **Inertia.js v3**, **Tailwind CSS v4**, **Vite** |
-| Auth UI / API | **Laravel Fortify** |
-| Rutas tipadas | **Laravel Wayfinder** (`@/routes`, `@/actions`) |
-| LTI | Paquete local **`cfrd/lti`** (`cfrd-lti/`): JWKS, login initiation OIDC, launch |
-| H5P en cliente | **`h5p-standalone`** (assets copiados a `public/vendor/h5p-standalone` en `postinstall`) |
-| Datos | **PostgreSQL** (despliegue CFRD), **Redis** (caché, sesión, colas opcionales) |
-| Contenedor | Apache + PHP (`ContenedorPrevencionDelitoPreviewH5P/apache/`), orquestación en `deploy/cfrd-stack/` |
+| Backend | PHP 8.4, Laravel 13 |
+| Frontend | Vue 3, Inertia.js v3, Tailwind CSS v4, Vite 8 |
+| Seguridad/Auth | Laravel Fortify + acceso adicional por contrasena para modulo LTI |
+| Integracion LTI | Paquete local `cfrd/lti` |
+| H5P | `h5p-standalone` |
+| Datos | PostgreSQL + Redis |
+| Despliegue | Docker + Apache + Traefik |
 
-## Funcionalidades principales
-
-- **Subida y previsualización de `.h5p`**: extracción del ZIP, URLs con token para assets y reproducción embebida (página principal / vista Inertia).
-- **LTI 1.3**: endpoints del paquete CFRD (`/lti/jwks.json`, `/lti/oauth/login-initiation`, `/lti/launch`) y flujo OIDC hacia el LMS (`/lti/oauth/authorize`).
-- **Administración de plataformas LTI**: CRUD de plataformas (issuer, client_id, JWKS, endpoints OIDC) y sincronización de JWKS.
-- **Conexiones LRS por plataforma**: URL del endpoint xAPI, versión, autenticación básica, prueba de conectividad.
-- **Reenvío xAPI**: `POST /xapi/statements/forward` agrupa statements desde el cliente, enriquece con datos de la última sesión LTI y las envía al LRS resuelto para el issuer actual.
-- **Autenticación de usuarios** (Fortify) y equipos (`teams`), según migraciones y páginas existentes.
-
-## Arquitectura lógica
+## Arquitectura (alto nivel)
 
 ```mermaid
-flowchart TB
-    subgraph LMS["LMS (Moodle / Canvas / …)"]
-        OIDC["OIDC / Authorization"]
-    end
-
-    subgraph Edge["Borde"]
-        T["Traefik (HTTPS)"]
-    end
-
-    subgraph App["Aplicación Laravel"]
-        W["Rutas web + Inertia"]
-        LTI["cfrd/lti: JWKS, OIDC, Launch"]
-        H5P["H5PPreviewController"]
-        XAPI["XapiStatementForwardController"]
-        ADM["LtiPlatformController (plataformas + LRS)"]
-    end
-
-    subgraph Data["Persistencia"]
-        PG[("PostgreSQL")]
-        RD[("Redis")]
-    end
-
-    subgraph Ext["Externo"]
-        LRS["LRS (xAPI)"]
-    end
-
-    LMS --> OIDC
-    OIDC --> T
-    T --> LTI
-    T --> W
-    W --> H5P
-    W --> XAPI
-    W --> ADM
-    LTI --> PG
-    H5P --> PG
-    ADM --> PG
-    XAPI --> PG
-    XAPI --> LRS
-    App --> RD
+flowchart LR
+    LMS[LMS\nMoodle/Canvas] -->|OIDC + Launch| APP[Laravel Tool]
+    APP -->|Render| UI[Inertia/Vue]
+    UI -->|xAPI statements| APP
+    APP -->|Forward xAPI| LRS[LRS]
+    APP --> PG[(PostgreSQL)]
+    APP --> RD[(Redis)]
 ```
 
-## Flujo LTI + reproducción H5P + xAPI
+## Flujo funcional
 
 ```mermaid
 sequenceDiagram
-    participant U as Usuario
+    participant User as Usuario
     participant LMS as LMS
-    participant T as Traefik
-    participant Tool as Laravel (tool)
-    participant B as Navegador (Vue / H5P)
+    participant Tool as Tool Laravel
+    participant Browser as Browser (Vue/H5P)
     participant LRS as LRS
 
-    U->>LMS: Abre actividad LTI
-    LMS->>Tool: Login initiation / Launch (OIDC)
-    Tool->>LMS: Redirect autorización (según config)
-    LMS->>Tool: Vuelta con contexto LTI
-    Tool->>B: Página Inertia (sesión con launch)
-    B->>Tool: Carga assets H5P / preview
-    B->>B: h5p-standalone reproduce contenido
-    B->>Tool: POST /xapi/statements/forward (lotes)
-    Tool->>LRS: POST statements (Basic Auth, X-Experience-API-Version)
-    LRS-->>Tool: 200 / error
-    Tool-->>B: JSON resultado (reenviadas, reintentos)
+    User->>LMS: Abre actividad LTI
+    LMS->>Tool: OIDC login initiation / launch
+    Tool->>Browser: Entrega vista Inertia
+    Browser->>Browser: Ejecuta contenido H5P
+    Browser->>Tool: Envia lote xAPI
+    Tool->>LRS: Reenvia statements normalizados
+    LRS-->>Tool: Respuesta 2xx/error
 ```
 
-## Requisitos locales
+## Estructura principal
 
-- PHP 8.3+ (8.4 recomendado, alineado con Docker), Composer, Node.js 22+, extensiones PHP habituales de Laravel (`pdo`, `intl`, `zip`, etc.) y **pdo_pgsql** si usas PostgreSQL.
+| Ruta | Proposito |
+|------|-----------|
+| `routes/web.php` | Rutas de preview H5P, administracion LTI/LRS y xAPI |
+| `cfrd-lti/routes/lti.php` | Endpoints LTI core (JWKS, OIDC, launch) |
+| `app/Http/Controllers/H5PPreviewController.php` | Upload y entrega de assets H5P |
+| `app/Http/Controllers/LtiPlatformController.php` | CRUD de plataformas + LRS |
+| `app/Http/Controllers/XapiStatementForwardController.php` | Normalizacion y envio xAPI al LRS |
+| `resources/js/pages/Welcome.vue` | Visor H5P y captura de eventos xAPI |
+| `resources/js/pages/LtiPlatforms.vue` | UI de administracion LTI/LRS con acceso protegido |
+| `deploy/cfrd-stack/` | Archivos de despliegue para stack CFRD |
 
-## Puesta en marcha (desarrollo)
+## Requisitos
 
-1. `cp .env.example .env` y configurar `APP_URL`, base de datos y variables **`LTI_*`** según tu LMS (ver `.env.example` y el paquete `cfrd-lti`).
-2. `composer install`
-3. `php artisan key:generate`
-4. `php artisan migrate`
-5. `npm install` (ejecuta `postinstall`: copia **h5p-standalone** a `public/vendor/h5p-standalone`)
-6. `php artisan wayfinder:generate`
-7. `npm run dev` (o `npm run build` para assets de producción)
+- PHP 8.3+ (recomendado 8.4).
+- Composer 2+.
+- Node.js 22 (Node 20.19+ tambien puede funcionar).
+- Extensiones PHP: `pdo`, `pdo_pgsql`, `intl`, `zip`, `bcmath`, `opcache`.
 
-Pruebas automatizadas (ejemplos):
+## Instalacion local
+
+```bash
+cp .env.example .env
+composer install
+php artisan key:generate
+php artisan migrate
+npm install
+php artisan wayfinder:generate
+npm run dev
+```
+
+## Variables de entorno clave
+
+- `APP_URL`, `ASSET_URL`
+- `DB_*` (pgsql en entorno CFRD)
+- `REDIS_*`
+- `LTI_TOOL_*`
+- `LTI_PLATFORM_*`
+- `LTI_OIDC_ALLOWED_TARGET_URIS`
+- `LTI_PLATFORMS_PASSWORD` (acceso a `/lti/plataformas`)
+
+## Pruebas
 
 ```bash
 php artisan test --compact
 php artisan test --compact tests/Feature/Lti
-php artisan test --compact tests/Feature/H5PPreviewControllerTest.php
 ```
 
-## Despliegue CFRD (referencia)
+## Despliegue CFRD
 
-- Manifiesto de ejemplo: `deploy/cfrd-stack/docker-compose.yml` (red externa **`microservicios_service_net`**, etiquetas Traefik, variables en `deploy/cfrd-stack/env.laravel.fragment.example`).
-- El contenedor ejecuta `ContenedorPrevencionDelitoPreviewH5P/apache/init.sh`: instala dependencias PHP, y si hace falta corre **`npm ci`** y **`npm run build`** cuando no hay manifiesto de Vite.
-- Alinear credenciales **`DB_*`** con el PostgreSQL del stack; no versionar `.env` con secretos.
-
-Antes de levantar contenedores en entornos compartidos, conviene confirmar el procedimiento con el equipo de infraestructura (red Docker, DNS y TLS en Traefik).
-
-## Estructura relevante
-
-| Ruta | Rol |
-|------|-----|
-| `routes/web.php` | Home, H5P preview, plataformas LTI, LRS, OIDC authorize, forward xAPI |
-| `cfrd-lti/routes/lti.php` | JWKS, login initiation, launch |
-| `app/Http/Controllers/H5PPreviewController.php` | Subida y entrega de assets H5P |
-| `app/Http/Controllers/XapiStatementForwardController.php` | Normalización y envío al LRS |
-| `app/Http/Controllers/LtiPlatformController.php` | Plataformas y conexiones LRS |
-| `resources/js/pages/Welcome.vue` | Visor H5P, captura xAPI, UI LTI |
-| `deploy/cfrd-stack/` | Compose y fragmento de `.env` para el stack |
+- Host publico esperado: `pddp.cfrd.cl`.
+- Red externa del stack: `microservicios_service_net` (o `CFRD_STACK_NETWORK`).
+- Publicacion via Traefik (sin exponer puertos directos de app).
+- Referencia de compose: `deploy/cfrd-stack/docker-compose.yml`.
 
 ## Licencia
 
-MIT (según `composer.json` del esqueleto Laravel; revisar si el producto final define otra licencia).
+MIT.
