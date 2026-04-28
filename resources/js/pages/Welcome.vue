@@ -729,7 +729,7 @@ const xapiRetryInSeconds = computed(() => {
                         :href="platforms()"
                         class="rounded-md border border-[#223c6a] px-4 py-2 text-sm font-medium text-[#223c6a] hover:bg-[#223c6a] hover:text-white"
                     >
-                        Integracion LTI
+                        Integraciones
                     </Link>
                 </div>
             </header>

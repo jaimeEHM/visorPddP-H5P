@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { home } from '@/routes';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 
 type Platform = {
@@ -81,6 +81,8 @@ const createForm = useForm({
 });
 
 const hasPlatforms = computed(() => props.platforms.length > 0);
+const selectedSegment = ref<'lti' | 'lrs'>('lti');
+const isLrsSegmentEnabled = computed(() => hasPlatforms.value);
 const lrsFilter = ref('');
 const lrsCreateForm = useForm({
     lti_platform_id: props.lrs_form_defaults.lti_platform_id,
@@ -104,11 +106,25 @@ const filteredLrsConnections = computed(() => {
     });
 });
 
+watch(isLrsSegmentEnabled, (enabled) => {
+    if (!enabled && selectedSegment.value === 'lrs') {
+        selectedSegment.value = 'lti';
+    }
+});
+
 function submitCreate(): void {
     createForm.post('/lti/plataformas', {
         preserveScroll: true,
         onSuccess: () => createForm.reset(),
     });
+}
+
+function selectSegment(segment: 'lti' | 'lrs'): void {
+    if (segment === 'lrs' && !isLrsSegmentEnabled.value) {
+        return;
+    }
+
+    selectedSegment.value = segment;
 }
 
 function submitAccess(): void {
@@ -162,12 +178,12 @@ function testLrsConnection(connection: LrsConnection): void {
 </script>
 
 <template>
-    <Head title="Integracion LTI" />
+    <Head title="Integraciones LTI y LRS" />
 
     <main class="min-h-dvh bg-white px-4 py-8 text-gray-900">
         <div class="mx-auto w-full max-w-6xl space-y-6">
             <header class="flex items-center justify-between">
-                <h1 class="text-3xl font-semibold text-[#223c6a]">Integracion de plataformas LTI</h1>
+                <h1 class="text-3xl font-semibold text-[#223c6a]">Integraciones LTI y LRS</h1>
                 <Link :href="home()" class="rounded-md border border-[#223c6a] px-4 py-2 text-sm font-medium text-[#223c6a] hover:bg-[#223c6a] hover:text-white">
                     Volver al preview
                 </Link>
@@ -178,9 +194,9 @@ function testLrsConnection(connection: LrsConnection): void {
             </section>
 
             <section v-if="!props.hasAccess" class="rounded-xl border border-gray-200 bg-white p-4">
-                <h2 class="text-lg font-semibold text-[#223c6a]">Acceso a administracion LTI</h2>
+                <h2 class="text-lg font-semibold text-[#223c6a]">Acceso a vistas de Integraciones LTI y LRS</h2>
                 <p class="mt-1 text-sm text-gray-600">
-                    Ingresa la contrasena para administrar plataformas y conexiones LRS.
+                    Ingresa la clave para ver y administrar las vistas de Integraciones LTI y LRS.
                 </p>
                 <form class="mt-4 max-w-md space-y-3" @submit.prevent="submitAccess">
                     <input v-model="accessForm.password" type="password" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Contrasena" required />
@@ -192,132 +208,170 @@ function testLrsConnection(connection: LrsConnection): void {
                     </button>
                 </form>
             </section>
-
             <template v-else>
-            <section class="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <h2 class="text-lg font-semibold text-[#223c6a]">Datos para Canvas/Moodle</h2>
-                <div class="mt-3 grid gap-3 text-sm md:grid-cols-2">
-                    <div class="rounded-md border border-gray-200 bg-white p-3">
-                        <p class="font-semibold">Tool Issuer / APP_URL</p>
-                        <p class="mt-1 break-all text-gray-700">{{ props.tool.app_url }}</p>
-                    </div>
-                    <div class="rounded-md border border-gray-200 bg-white p-3">
-                        <p class="font-semibold">JWKS URL</p>
-                        <p class="mt-1 break-all text-gray-700">{{ props.tool.jwks_url }}</p>
-                    </div>
-                    <div class="rounded-md border border-gray-200 bg-white p-3">
-                        <p class="font-semibold">OIDC Login Initiation URL</p>
-                        <p class="mt-1 break-all text-gray-700">{{ props.tool.login_initiation_url }}</p>
-                    </div>
-                    <div class="rounded-md border border-gray-200 bg-white p-3">
-                        <p class="font-semibold">Launch URL</p>
-                        <p class="mt-1 break-all text-gray-700">{{ props.tool.launch_url }}</p>
-                    </div>
-                </div>
-            </section>
-
-            <section class="rounded-xl border border-gray-200 bg-white p-4">
-                <h2 class="text-lg font-semibold text-[#223c6a]">Registrar plataforma LMS</h2>
-                <form class="mt-4 grid gap-3 md:grid-cols-2" @submit.prevent="submitCreate">
-                    <input v-model="createForm.name" type="text" class="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Nombre (Canvas UdeC, Moodle, etc.)" />
-                    <input v-model="createForm.issuer" type="url" class="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Issuer (https://...)" required />
-                    <input v-model="createForm.client_id" type="text" class="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Client ID" required />
-                    <input v-model="createForm.jwks_url" type="url" class="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="JWKS URL (https://...)" />
-                    <input v-model="createForm.authorization_endpoint" type="url" class="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Authorization endpoint" />
-                    <input v-model="createForm.token_endpoint" type="url" class="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Token endpoint" />
-                    <div class="md:col-span-2">
-                        <button type="submit" class="rounded-md bg-[#223c6a] px-4 py-2 text-sm font-medium text-white hover:bg-[#1a2f53]" :disabled="createForm.processing">
-                            Guardar plataforma
+                <section class="rounded-xl border border-gray-200 bg-white p-4">
+                    <div class="grid grid-cols-2 border-b border-gray-200">
+                        <button
+                            type="button"
+                            class="px-4 py-3 text-sm font-semibold uppercase tracking-wide"
+                            :class="selectedSegment === 'lti' ? 'border-b-2 border-[#2563eb] text-[#2563eb]' : 'text-gray-500 hover:text-gray-700'"
+                            @click="selectSegment('lti')"
+                        >
+                            LTI
+                        </button>
+                        <button
+                            type="button"
+                            class="px-4 py-3 text-sm font-semibold uppercase tracking-wide"
+                            :class="selectedSegment === 'lrs'
+                                ? 'border-b-2 border-[#2563eb] text-[#2563eb]'
+                                : isLrsSegmentEnabled
+                                    ? 'text-gray-500 hover:text-gray-700'
+                                    : 'cursor-not-allowed text-gray-300'"
+                            :disabled="!isLrsSegmentEnabled"
+                            @click="selectSegment('lrs')"
+                        >
+                            LRS
                         </button>
                     </div>
-                </form>
-            </section>
+                    <p v-if="!isLrsSegmentEnabled" class="mt-3 text-sm text-gray-500">
+                        El segmento LRS se habilita cuando exista al menos una integración LTI registrada.
+                    </p>
+                </section>
 
-            <section class="rounded-xl border border-gray-200 bg-white p-4">
-                <h2 class="text-lg font-semibold text-[#223c6a]">Plataformas registradas</h2>
-                <p v-if="!hasPlatforms" class="mt-2 text-sm text-gray-500">Aun no hay plataformas registradas.</p>
-                <div v-else class="mt-3 space-y-3">
-                    <article v-for="platform in props.platforms" :key="platform.id" class="rounded-lg border border-gray-200 p-3">
-                        <div class="flex flex-wrap items-start justify-between gap-3">
-                            <div class="space-y-1 text-sm">
-                                <p class="font-semibold text-[#223c6a]">{{ platform.name || 'Sin nombre' }}</p>
-                                <p><span class="font-medium">Issuer:</span> {{ platform.issuer }}</p>
-                                <p><span class="font-medium">Client ID:</span> {{ platform.client_id || '—' }}</p>
-                                <p><span class="font-medium">JWKS URL:</span> {{ platform.jwks_url || '—' }}</p>
+                <section v-if="selectedSegment === 'lti'" class="rounded-xl border border-[#223c6a]/25 bg-[#223c6a]/5 p-4">
+                    <h2 class="text-lg font-semibold text-[#223c6a]">Segmento LTI</h2>
+                    <p class="mt-1 text-sm text-gray-600">Configuración de plataforma LMS y endpoints de integración LTI.</p>
+
+                    <section class="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                        <h3 class="text-lg font-semibold text-[#223c6a]">Datos para Canvas/Moodle</h3>
+                        <div class="mt-3 grid gap-3 text-sm md:grid-cols-2">
+                            <div class="rounded-md border border-gray-200 bg-white p-3">
+                                <p class="font-semibold">Tool Issuer / APP_URL</p>
+                                <p class="mt-1 break-all text-gray-700">{{ props.tool.app_url }}</p>
                             </div>
-                            <div class="flex gap-2">
-                                <button type="button" class="rounded-md border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100" @click="syncJwks(platform)">
-                                    Sync JWKS
-                                </button>
-                                <button type="button" class="rounded-md bg-[#d21428] px-3 py-1 text-xs font-medium text-white hover:bg-[#ad1021]" @click="removePlatform(platform)">
-                                    Eliminar
-                                </button>
+                            <div class="rounded-md border border-gray-200 bg-white p-3">
+                                <p class="font-semibold">JWKS URL</p>
+                                <p class="mt-1 break-all text-gray-700">{{ props.tool.jwks_url }}</p>
                             </div>
-                        </div>
-                    </article>
-                </div>
-            </section>
-
-            <section class="rounded-xl border border-gray-200 bg-white p-4">
-                <h2 class="text-lg font-semibold text-[#223c6a]">Integracion LRS (xAPI)</h2>
-                <p class="mt-1 text-sm text-gray-600">
-                    Configura endpoint xAPI `statements`, credenciales Basic Auth y version de xAPI.
-                </p>
-
-                <form class="mt-4 grid gap-3 md:grid-cols-2" @submit.prevent="submitLrsCreate">
-                    <input v-model="lrsCreateForm.name" type="text" class="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Nombre de conexion LRS" required />
-                    <select v-model="lrsCreateForm.lti_platform_id" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
-                        <option :value="null">Sin plataforma asociada</option>
-                        <option v-for="platform in props.platforms" :key="platform.id" :value="platform.id">
-                            {{ platform.name || platform.issuer }}
-                        </option>
-                    </select>
-                    <input v-model="lrsCreateForm.endpoint_url" type="url" class="rounded-md border border-gray-300 px-3 py-2 text-sm md:col-span-2" placeholder="https://tu-lrs/xapi/statements" required />
-                    <input v-model="lrsCreateForm.basic_username" type="text" class="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Basic username" required />
-                    <input v-model="lrsCreateForm.basic_password" type="password" class="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Basic password" required />
-                    <input v-model="lrsCreateForm.xapi_version" type="text" class="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1.0.3" required />
-                    <div class="md:col-span-2">
-                        <button type="submit" class="rounded-md bg-[#223c6a] px-4 py-2 text-sm font-medium text-white hover:bg-[#1a2f53]" :disabled="lrsCreateForm.processing">
-                            Guardar conexion LRS
-                        </button>
-                    </div>
-                </form>
-            </section>
-
-            <section class="rounded-xl border border-gray-200 bg-white p-4">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <h2 class="text-lg font-semibold text-[#223c6a]">Conexiones LRS registradas</h2>
-                    <input v-model="lrsFilter" type="text" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm md:w-80" placeholder="Filtrar por nombre, endpoint o plataforma" />
-                </div>
-
-                <p v-if="filteredLrsConnections.length === 0" class="mt-3 text-sm text-gray-500">
-                    No hay conexiones LRS para el filtro actual.
-                </p>
-                <div v-else class="mt-3 space-y-3">
-                    <article v-for="connection in filteredLrsConnections" :key="connection.id" class="rounded-lg border border-gray-200 p-3">
-                        <div class="flex flex-wrap items-start justify-between gap-3">
-                            <div class="space-y-1 text-sm">
-                                <p class="font-semibold text-[#223c6a]">{{ connection.name }}</p>
-                                <p><span class="font-medium">Endpoint:</span> {{ connection.endpoint_url }}</p>
-                                <p><span class="font-medium">Usuario:</span> {{ connection.basic_username }}</p>
-                                <p><span class="font-medium">xAPI:</span> {{ connection.xapi_version }}</p>
-                                <p>
-                                    <span class="font-medium">Plataforma:</span>
-                                    {{ connection.platform?.name || connection.platform?.issuer || 'Sin asociar' }}
-                                </p>
+                            <div class="rounded-md border border-gray-200 bg-white p-3">
+                                <p class="font-semibold">OIDC Login Initiation URL</p>
+                                <p class="mt-1 break-all text-gray-700">{{ props.tool.login_initiation_url }}</p>
                             </div>
-                            <div class="flex gap-2">
-                                <button type="button" class="rounded-md border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100" @click="testLrsConnection(connection)">
-                                    Probar
-                                </button>
-                                <button type="button" class="rounded-md bg-[#d21428] px-3 py-1 text-xs font-medium text-white hover:bg-[#ad1021]" @click="removeLrsConnection(connection)">
-                                    Eliminar
-                                </button>
+                            <div class="rounded-md border border-gray-200 bg-white p-3">
+                                <p class="font-semibold">Launch URL</p>
+                                <p class="mt-1 break-all text-gray-700">{{ props.tool.launch_url }}</p>
                             </div>
                         </div>
-                    </article>
-                </div>
-            </section>
+                    </section>
+
+                    <section class="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+                        <h3 class="text-lg font-semibold text-[#223c6a]">Registrar plataforma LMS a LTI</h3>
+                        <form class="mt-4 grid gap-3 md:grid-cols-2" @submit.prevent="submitCreate">
+                            <input v-model="createForm.name" type="text" class="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Nombre (Canvas UdeC, Moodle, etc.)" />
+                            <input v-model="createForm.issuer" type="url" class="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Issuer (https://...)" required />
+                            <input v-model="createForm.client_id" type="text" class="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Client ID" required />
+                            <input v-model="createForm.jwks_url" type="url" class="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="JWKS URL (https://...)" />
+                            <input v-model="createForm.authorization_endpoint" type="url" class="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Authorization endpoint" />
+                            <input v-model="createForm.token_endpoint" type="url" class="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Token endpoint" />
+                            <div class="md:col-span-2">
+                                <button type="submit" class="rounded-md bg-[#223c6a] px-4 py-2 text-sm font-medium text-white hover:bg-[#1a2f53]" :disabled="createForm.processing">
+                                    Guardar plataforma
+                                </button>
+                            </div>
+                        </form>
+                    </section>
+
+                    <section class="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+                        <h3 class="text-lg font-semibold text-[#223c6a]">Plataformas registradas</h3>
+                        <p v-if="!hasPlatforms" class="mt-2 text-sm text-gray-500">Aun no hay plataformas registradas.</p>
+                        <div v-else class="mt-3 space-y-3">
+                            <article v-for="platform in props.platforms" :key="platform.id" class="rounded-lg border border-gray-200 p-3">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div class="space-y-1 text-sm">
+                                        <p class="font-semibold text-[#223c6a]">{{ platform.name || 'Sin nombre' }}</p>
+                                        <p><span class="font-medium">Issuer:</span> {{ platform.issuer }}</p>
+                                        <p><span class="font-medium">Client ID:</span> {{ platform.client_id || '—' }}</p>
+                                        <p><span class="font-medium">JWKS URL:</span> {{ platform.jwks_url || '—' }}</p>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button type="button" class="rounded-md border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100" @click="syncJwks(platform)">
+                                            Sync JWKS
+                                        </button>
+                                        <button type="button" class="rounded-md bg-[#d21428] px-3 py-1 text-xs font-medium text-white hover:bg-[#ad1021]" @click="removePlatform(platform)">
+                                            Eliminar
+                                        </button>
+                                    </div>
+                                </div>
+                            </article>
+                        </div>
+                    </section>
+                </section>
+
+                <section v-else class="rounded-xl border border-[#e69b0a]/35 bg-[#e69b0a]/10 p-4">
+                    <h2 class="text-lg font-semibold text-[#223c6a]">Segmento LRS</h2>
+                    <p class="mt-1 text-sm text-gray-600">Configuración de endpoints, credenciales y pruebas de integración xAPI.</p>
+
+                    <section class="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+                        <h3 class="text-lg font-semibold text-[#223c6a]">Integracion LRS (xAPI)</h3>
+                        <p class="mt-1 text-sm text-gray-600">
+                            Configura endpoint xAPI `statements`, credenciales Basic Auth y version de xAPI.
+                        </p>
+
+                        <form class="mt-4 grid gap-3 md:grid-cols-2" @submit.prevent="submitLrsCreate">
+                            <input v-model="lrsCreateForm.name" type="text" class="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Nombre de conexion LRS" required />
+                            <select v-model="lrsCreateForm.lti_platform_id" class="rounded-md border border-gray-300 px-3 py-2 text-sm">
+                                <option :value="null">Sin plataforma asociada</option>
+                                <option v-for="platform in props.platforms" :key="platform.id" :value="platform.id">
+                                    {{ platform.name || platform.issuer }}
+                                </option>
+                            </select>
+                            <input v-model="lrsCreateForm.endpoint_url" type="url" class="rounded-md border border-gray-300 px-3 py-2 text-sm md:col-span-2" placeholder="https://tu-lrs/xapi/statements" required />
+                            <input v-model="lrsCreateForm.basic_username" type="text" class="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Basic username" required />
+                            <input v-model="lrsCreateForm.basic_password" type="password" class="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Basic password" required />
+                            <input v-model="lrsCreateForm.xapi_version" type="text" class="rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1.0.3" required />
+                            <div class="md:col-span-2">
+                                <button type="submit" class="rounded-md bg-[#223c6a] px-4 py-2 text-sm font-medium text-white hover:bg-[#1a2f53]" :disabled="lrsCreateForm.processing">
+                                    Guardar conexion LRS
+                                </button>
+                            </div>
+                        </form>
+                    </section>
+
+                    <section class="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <h3 class="text-lg font-semibold text-[#223c6a]">Conexiones LRS registradas</h3>
+                            <input v-model="lrsFilter" type="text" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm md:w-80" placeholder="Filtrar por nombre, endpoint o plataforma" />
+                        </div>
+
+                        <p v-if="filteredLrsConnections.length === 0" class="mt-3 text-sm text-gray-500">
+                            No hay conexiones LRS para el filtro actual.
+                        </p>
+                        <div v-else class="mt-3 space-y-3">
+                            <article v-for="connection in filteredLrsConnections" :key="connection.id" class="rounded-lg border border-gray-200 p-3">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div class="space-y-1 text-sm">
+                                        <p class="font-semibold text-[#223c6a]">{{ connection.name }}</p>
+                                        <p><span class="font-medium">Endpoint:</span> {{ connection.endpoint_url }}</p>
+                                        <p><span class="font-medium">Usuario:</span> {{ connection.basic_username }}</p>
+                                        <p><span class="font-medium">xAPI:</span> {{ connection.xapi_version }}</p>
+                                        <p>
+                                            <span class="font-medium">Plataforma:</span>
+                                            {{ connection.platform?.name || connection.platform?.issuer || 'Sin asociar' }}
+                                        </p>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button type="button" class="rounded-md border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100" @click="testLrsConnection(connection)">
+                                            Probar
+                                        </button>
+                                        <button type="button" class="rounded-md bg-[#d21428] px-3 py-1 text-xs font-medium text-white hover:bg-[#ad1021]" @click="removeLrsConnection(connection)">
+                                            Eliminar
+                                        </button>
+                                    </div>
+                                </div>
+                            </article>
+                        </div>
+                    </section>
+                </section>
             <section class="flex justify-end">
                 <button type="button" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100" @click="logoutAccess">
                     Cerrar sesion de administracion

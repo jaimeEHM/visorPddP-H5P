@@ -9,6 +9,7 @@ auth.json
 
 # Entorno y secretos (el despliegue usa variables del host / .env no versionado)
 .env
+.env copy
 .env.backup
 .env.production
 .env.*.local
