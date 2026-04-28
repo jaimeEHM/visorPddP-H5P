@@ -2,6 +2,10 @@
 
 Aplicacion web para visualizar contenidos H5P, integrarlos en LMS mediante LTI 1.3 (OIDC) y reenviar eventos xAPI a un LRS configurable. El proyecto esta pensado para operacion institucional en CFRD, detras de Traefik, con PostgreSQL y Redis.
 
+## Documentacion adicional
+
+- Despliegue en subdirectorio/alias (distinto de `/`): `docs/ALIAS_DEPLOYMENT.md`
+
 ## Objetivo
 
 Centralizar la previsualizacion/ejecucion de paquetes H5P y su trazabilidad de aprendizaje (xAPI), permitiendo:
@@ -134,6 +138,7 @@ php artisan test --compact tests/Feature/Lti
 - Red externa del stack: `microservicios_service_net` (o `CFRD_STACK_NETWORK`).
 - Publicacion via Traefik (sin exponer puertos directos de app).
 - Nota: en este repositorio los directorios `deploy/` y `ContenedorPrevencionDelitoPreviewH5P/` estan en `.gitignore`; usa tu copia local para despliegue.
+- Para despliegue en un directorio distinto de `/` (alias/subpath), revisa `docs/ALIAS_DEPLOYMENT.md`.
 
 ## Licencia
 
