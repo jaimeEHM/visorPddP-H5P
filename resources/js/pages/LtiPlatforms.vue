@@ -32,6 +32,7 @@ type LrsConnection = {
 };
 
 const props = defineProps<{
+    hasAccess: boolean;
     platforms: Platform[];
     lrsConnections: LrsConnection[];
     tool: {
@@ -64,6 +65,9 @@ const flashSuccess = computed(() => {
 const flashError = computed(() => {
     const flash = (page.props as { flash?: { error?: unknown } }).flash;
     return typeof flash?.error === 'string' ? flash.error : null;
+});
+const accessForm = useForm({
+    password: '',
 });
 
 const createForm = useForm({
@@ -105,6 +109,17 @@ function submitCreate(): void {
         preserveScroll: true,
         onSuccess: () => createForm.reset(),
     });
+}
+
+function submitAccess(): void {
+    accessForm.post('/lti/login', {
+        preserveScroll: true,
+        onFinish: () => accessForm.reset('password'),
+    });
+}
+
+function logoutAccess(): void {
+    router.post('/lti/logout', {}, { preserveScroll: true });
 }
 
 function removePlatform(platform: Platform): void {
@@ -162,6 +177,23 @@ function testLrsConnection(connection: LrsConnection): void {
                 {{ flashError || flashSuccess }}
             </section>
 
+            <section v-if="!props.hasAccess" class="rounded-xl border border-gray-200 bg-white p-4">
+                <h2 class="text-lg font-semibold text-[#223c6a]">Acceso a administracion LTI</h2>
+                <p class="mt-1 text-sm text-gray-600">
+                    Ingresa la contrasena para administrar plataformas y conexiones LRS.
+                </p>
+                <form class="mt-4 max-w-md space-y-3" @submit.prevent="submitAccess">
+                    <input v-model="accessForm.password" type="password" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Contrasena" required />
+                    <p v-if="accessForm.errors.password" class="text-sm text-[#d21428]">
+                        {{ accessForm.errors.password }}
+                    </p>
+                    <button type="submit" class="rounded-md bg-[#223c6a] px-4 py-2 text-sm font-medium text-white hover:bg-[#1a2f53]" :disabled="accessForm.processing">
+                        Ingresar
+                    </button>
+                </form>
+            </section>
+
+            <template v-else>
             <section class="rounded-xl border border-gray-200 bg-gray-50 p-4">
                 <h2 class="text-lg font-semibold text-[#223c6a]">Datos para Canvas/Moodle</h2>
                 <div class="mt-3 grid gap-3 text-sm md:grid-cols-2">
@@ -286,6 +318,12 @@ function testLrsConnection(connection: LrsConnection): void {
                     </article>
                 </div>
             </section>
+            <section class="flex justify-end">
+                <button type="button" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100" @click="logoutAccess">
+                    Cerrar sesion de administracion
+                </button>
+            </section>
+            </template>
         </div>
     </main>
 </template>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\EnsureLtiPlatformsAccess;
 use App\Models\LrsConnection;
 use App\Models\LtiPlatform;
 use Illuminate\Http\Client\ConnectionException;
@@ -16,6 +17,7 @@ class LtiPlatformController extends Controller
 {
     public function index(Request $request): Response
     {
+        $hasAccess = $request->session()->get(EnsureLtiPlatformsAccess::SESSION_KEY) === true;
         $platforms = LtiPlatform::query()
             ->orderByDesc('id')
             ->get([
@@ -50,6 +52,7 @@ class LtiPlatformController extends Controller
             ->values();
 
         return Inertia::render('LtiPlatforms', [
+            'hasAccess' => $hasAccess,
             'platforms' => $platforms,
             'lrsConnections' => $lrsConnections,
             'tool' => [

@@ -123,4 +123,6 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    'lti_platforms_password' => env('LTI_PLATFORMS_PASSWORD', 'cf753rd/,.'),
+
 ];

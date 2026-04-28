@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Lti;
 
+use App\Http\Middleware\EnsureLtiPlatformsAccess;
 use App\Models\LtiPlatform;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -10,6 +11,15 @@ use Tests\TestCase;
 class LtiPlatformManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withSession([
+            EnsureLtiPlatformsAccess::SESSION_KEY => true,
+        ]);
+    }
 
     public function test_lti_platforms_page_loads_with_tool_data(): void
     {

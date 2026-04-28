@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Lti;
 
+use App\Http\Middleware\EnsureLtiPlatformsAccess;
 use App\Models\LrsConnection;
 use App\Models\LtiPlatform;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -12,6 +13,15 @@ use Tests\TestCase;
 class LrsConnectionManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withSession([
+            EnsureLtiPlatformsAccess::SESSION_KEY => true,
+        ]);
+    }
 
     public function test_lti_page_exposes_lrs_connections(): void
     {
