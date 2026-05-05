@@ -86,6 +86,15 @@ const standaloneAssets = {
     style: '/vendor/h5p-standalone/styles/h5p.css',
 };
 
+function toSameOriginPath(url: string): string {
+    try {
+        const parsed = new URL(url, window.location.origin);
+        return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    } catch {
+        return url;
+    }
+}
+
 function getCsrfToken(): string {
     const token = document
         .querySelector('meta[name="csrf-token"]')
@@ -420,9 +429,13 @@ async function renderPreview(currentPreviewId: string): Promise<void> {
         }
 
         h5pInstance = new H5P(container, {
-            h5pJsonPath: assetWithToken.url({ preview: currentPreviewId, token: previewToken.value }),
-            contentJsonPath: assetWithToken.url({ preview: currentPreviewId, token: previewToken.value, path: 'content' }),
-            librariesPath: assetWithToken.url({ preview: currentPreviewId, token: previewToken.value }),
+            h5pJsonPath: toSameOriginPath(assetWithToken.url({ preview: currentPreviewId, token: previewToken.value })),
+            contentJsonPath: toSameOriginPath(
+                assetWithToken.url({ preview: currentPreviewId, token: previewToken.value, path: 'content' }),
+            ),
+            librariesPath: toSameOriginPath(
+                assetWithToken.url({ preview: currentPreviewId, token: previewToken.value, path: 'libraries' }),
+            ),
             frameJs: standaloneAssets.script,
             frameCss: standaloneAssets.style,
             frame: true,
@@ -448,7 +461,7 @@ async function uploadFile(file: File): Promise<void> {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetch(upload.url(), {
+        const response = await fetch(toSameOriginPath(upload.url()), {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': getCsrfToken(),
@@ -519,7 +532,7 @@ async function deleteCurrent(): Promise<void> {
         query.token = previewToken.value;
     }
 
-    const response = await fetch(destroy.url(Object.keys(query).length > 0 ? { query } : undefined), {
+    const response = await fetch(toSameOriginPath(destroy.url(Object.keys(query).length > 0 ? { query } : undefined)), {
         method: 'DELETE',
         headers: {
             'X-CSRF-TOKEN': getCsrfToken(),

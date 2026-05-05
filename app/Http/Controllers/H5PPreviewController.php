@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\LtiH5pInstance;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
@@ -17,7 +18,7 @@ class H5PPreviewController extends Controller
     public function upload(Request $request): JsonResponse
     {
         $uploaded = $request->file('file');
-        if ($uploaded instanceof \Illuminate\Http\UploadedFile && ! $uploaded->isValid()) {
+        if ($uploaded instanceof UploadedFile && ! $uploaded->isValid()) {
             $message = 'El archivo no pudo subirse.';
 
             if (config('app.debug')) {
@@ -64,7 +65,7 @@ class H5PPreviewController extends Controller
                 'max:204800',
                 'mimetypes:application/zip,application/x-zip-compressed,application/octet-stream',
                 static function (string $attribute, mixed $value, \Closure $fail): void {
-                    if (! $value instanceof \Illuminate\Http\UploadedFile) {
+                    if (! $value instanceof UploadedFile) {
                         return;
                     }
 
@@ -85,7 +86,7 @@ class H5PPreviewController extends Controller
         File::ensureDirectoryExists($extractPath);
         $validated['file']->move($rootPath, 'resource.h5p');
 
-        $archive = new ZipArchive();
+        $archive = new ZipArchive;
         $openResult = $archive->open($archivePath);
         if ($openResult !== true) {
             File::deleteDirectory($rootPath);
@@ -274,6 +275,13 @@ class H5PPreviewController extends Controller
             $fullPath = rtrim($fullPath, '/').'/index.html';
         }
 
+        if (! File::exists($fullPath)) {
+            $fallbackPath = $this->resolveH5pAssetFallbackPath($basePath, $normalizedPath);
+            if (is_string($fallbackPath)) {
+                $fullPath = $fallbackPath;
+            }
+        }
+
         abort_if(! File::exists($fullPath), 404);
 
         $response = response()->file($fullPath);
@@ -302,5 +310,23 @@ class H5PPreviewController extends Controller
         }
 
         return $response;
+    }
+
+    private function resolveH5pAssetFallbackPath(string $basePath, string $normalizedPath): ?string
+    {
+        if ($normalizedPath === '') {
+            return null;
+        }
+
+        $librariesPrefix = 'libraries/';
+        $inLibraries = str_starts_with($normalizedPath, $librariesPrefix);
+
+        // Algunos paquetes H5P traen las librerías en la raíz; otros bajo `libraries/`.
+        // Para soportar ambos formatos, probamos el "espejo" con/sin prefijo.
+        $candidate = $inLibraries
+            ? $basePath.'/'.substr($normalizedPath, strlen($librariesPrefix))
+            : $basePath.'/'.$librariesPrefix.$normalizedPath;
+
+        return File::exists($candidate) ? $candidate : null;
     }
 }
