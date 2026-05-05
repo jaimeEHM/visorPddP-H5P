@@ -81,9 +81,25 @@ const selectedView = ref<'admin' | 'student'>(canManageResource.value ? 'admin' 
 const showViewToggle = computed(() => !shouldApplyMoodleRestrictions.value);
 const isAdminView = computed(() => (shouldApplyMoodleRestrictions.value ? canManageResource.value : selectedView.value === 'admin'));
 
+function resolveViteBaseUrl(): string {
+    const viteBase = (import.meta as unknown as { env?: { BASE_URL?: string } })?.env?.BASE_URL;
+    if (typeof viteBase === 'string' && viteBase.trim() !== '') {
+        return viteBase.endsWith('/') ? viteBase : `${viteBase}/`;
+    }
+
+    const baseFromDocument = new URL('.', document.baseURI).pathname;
+    return baseFromDocument.endsWith('/') ? baseFromDocument : `${baseFromDocument}/`;
+}
+
+function buildPublicAssetPath(relativePath: string): string {
+    const base = resolveViteBaseUrl();
+    const normalized = relativePath.replace(/^\/+/, '');
+    return `${base}${normalized}`;
+}
+
 const standaloneAssets = {
-    script: '/vendor/h5p-standalone/frame.bundle.js',
-    style: '/vendor/h5p-standalone/styles/h5p.css',
+    script: buildPublicAssetPath('vendor/h5p-standalone/frame.bundle.js'),
+    style: buildPublicAssetPath('vendor/h5p-standalone/styles/h5p.css'),
 };
 
 function toSameOriginPath(url: string): string {
